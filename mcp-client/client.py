@@ -1,5 +1,10 @@
-import asyncio
 import os
+
+# CRITICAL: Set this BEFORE importing google.generativeai
+# This prevents the 401 "API keys not supported" error by forcing consumer API usage
+os.environ['GOOGLE_GENAI_USE_VERTEXAI'] = 'false'
+
+import asyncio
 import sys
 from typing import Optional, Any
 from contextlib import AsyncExitStack
@@ -23,8 +28,10 @@ class MCPClient:
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
              raise ValueError("GOOGLE_API_KEY environment variable required")
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Configure with API key - explicitly use REST transport
+        genai.configure(api_key=api_key, transport='rest')
+        self.model = None
         self.chat = None
 
     async def connect_to_server(self, server_script_path: str):
@@ -65,8 +72,7 @@ class MCPClient:
         # Convert MCP tools to Gemini tools format
         gemini_tools = [self._convert_mcp_tool_to_gemini(tool) for tool in tools]
         
-        # Initialize chat with tools
-        # We need to recreate the model/chat with tools enabled
+        # Initialize model and chat with tools
         self.model = genai.GenerativeModel('gemini-1.5-flash', tools=gemini_tools)
         self.chat = self.model.start_chat(enable_automatic_function_calling=False)
 
